@@ -1,1 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dictation Game for Sheldon</title>
+    <style>
+        /* --- CSS STYLES --- */
+        :root {
+            --primary: #4A90E2;       /* Friendly Blue */
+            --secondary: #F5A623;     /* Cheerful Orange */
+            --bg: #F0F4F8;            /* Soft Cloud Background */
+            --surface: #FFFFFF;
+            --text: #2C3E50;
+            --success: #2ECC71;
+            --error: #E74C3C;
+            --font-stack: 'Comic Sans MS', 'Chalkboard SE', sans-serif; /* Playful font for kids */
+        }
 
+        body {
+            font-family: var(--font-stack);
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            position: relative; /* For absolute positioning context */
+        }
+
+        /* HOME BUTTON */
+        .home-btn {
+            background: var(--surface);
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 1.8rem;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            
+            /* Position top-left absolute by default */
+            position: absolute;
+            top: 20px;
+            left: 20px;
+        }
+
+        .home-btn:hover { transform: scale(1.1); }
+        .home-btn:active { transform: scale(0.95); }
+
+        /* DEVICE CONTROLS (Top Bar) */
+        .device-bar {
+            background: var(--surface);
+            padding: 10px 20px;
+            border-radius: 50px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            margin-bottom: 25px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 10px; /* Slight space from top */
+        }
+
+        /* RESPONSIVE LAYOUT FOR TOP BAR */
+        @media (max-width: 600px) {
+            .home-btn {
+                position: static; /* Stack normally on mobile */
+                align-self: flex-start; /* Align to left */
+                margin-bottom: 10px;
+            }
+            .device-bar {
+                margin-top: 0;
+            }
+        }
+
+        .device-btn {
+            background: none;
+            border: 2px solid transparent;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            color: #888;
+            border-radius: 20px;
+            transition: 0.3s;
+        }
+
+        .device-btn:hover { background: #f0f0f0; }
+        .device-btn.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 6px rgba(74, 144, 226, 0.3);
+        }
+
+        /* GAME CONTAINER (Resizes based on selection) */
+        .game-wrapper {
+            background: var(--surface);
+            border-radius: 24px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: width 0.3s ease, height 0.3s ease;
+            position: relative;
+            width: 100%; 
+            /* Default to Computer max-width */
+            max-width: 900px;
+            padding: 2rem;
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        /* Dimensions classes */
+        .view-mobile { max-width: 375px !important; }
+        .view-tablet { max-width: 768px !important; }
+        .view-computer { max-width: 1024px !important; }
+
+        h1 { color: var(--primary); margin-top: 0; }
+        h2 { font-size: 1.2rem; color: #666; font-weight: normal; }
+
+        /* BUTTONS */
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            border-radius: 12px;
+            cursor: pointer;
+            margin: 8px;
+            font-family: inherit;
+            transition: transform 0.1s, background 0.2s;
+            box-shadow: 0 4px 0 #357ABD; /* 3D effect */
+        }
+
+        .btn:active {
+            transform: translateY(4px);
+            box-shadow: none;
+        }
+
+        .btn-secondary {
+            background-color: var(--secondary);
+            box-shadow: 0 4px 0 #D48B1D;
+        }
+
+        .btn-lg { width: 80%; max-width: 300px; }
+
+        /* GAMEPLAY ELEMENTS */
+        .speaker-btn {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: var(--secondary);
+            border: none;
+            font-size: 3rem;
+            cursor: pointer;
+            margin: 20px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 6px 0 #c27b16;
+            transition: transform 0.1s;
+        }
+
+        .speaker-btn:active {
+            transform: scale(0.95) translateY(4px);
+            box-shadow: none;
+        }
+
+        input[type="text"] {
+            width: 80%;
+            padding: 15px;
+            font-size: 1.5rem;
+            text-align: center;
+            border: 3px solid #ddd;
+            border-radius: 12px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.3s;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--primary);
+        }
+
+        /* FEEDBACK BOX */
+        .feedback-box {
+            min-height: 80px;
+            padding: 15px;
+            border-radius: 12px;
+            margin-top: 10px;
+            display: none; /* Hidden by default */
+            animation: popIn 0.3s ease;
+        }
+
+        .feedback-correct {
+            background-color: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+
+        .feedback-wrong {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.9); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* UTILITIES */
+        .hidden { display: none !important; }
+        .score-badge {
+            background: #eee;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- Home Button -->
+    <button class="home-btn" onclick="goHome()" title="Go to Home">🏠</button>
+
+    <!-- Device Sizing Controls -->
+    <div class="device-bar">
+        <span>👀 View Mode:</span>
+        <button class="device-btn" onclick="setDevice('mobile')">📱 Mobile</button>
+        <button class="device-btn" onclick="setDevice('tablet')">📟 Tablet</button>
+        <button class="device-btn active" onclick="setDevice('computer')">💻 Computer</button>
+    </div>
+
+    <!-- Main Game Wrapper -->
+    <div id="game-wrapper" class="game-wrapper view-computer">
+        
+        <!-- SCREEN 1: CATEGORY SELECTION -->
+        <div id="screen-category">
+            <h1>Dictation Game 📝</h1>
+            <h2>Hi! What do you want to practice today?</h2>
+            
+            <button class="btn btn-lg" onclick="selectCategory('phonics')">🔤 Phonics</button>
+            <br>
+            <button class="btn btn-lg" onclick="selectCategory('words')">📖 Words</button>
+            <br>
+            <button class="btn btn-lg btn-secondary" onclick="selectCategory('mixed')">🔀 Mixed (Both)</button>
+        </div>
+
+        <!-- SCREEN 2: QUANTITY SELECTION -->
+        <div id="screen-quantity" class="hidden">
+            <h1>How many?</h1>
+            <h2>Choose the length of your game:</h2>
+            
+            <button class="btn btn-lg" onclick="startGame(5)">5 <span id="lbl-type-5">Questions</span></button>
+            <br>
+            <button class="btn btn-lg" onclick="startGame(10)">10 <span id="lbl-type-10">Questions</span></button>
+            <br>
+            <button class="btn btn-lg btn-secondary" onclick="startGame('all')">All <span id="lbl-type-all">Questions</span></button>
+            
+            <br><br>
+            <button class="device-btn" onclick="goBack()">Start Over</button>
+        </div>
+
+        <!-- SCREEN 3: GAMEPLAY -->
+        <div id="screen-game" class="hidden">
+            <div class="score-badge">Question <span id="current-q-num">1</span> of <span id="total-q-num">10</span></div>
+            
+            <div>
+                <button class="speaker-btn" onclick="speakCurrentWord()">🔊</button>
+                <p style="color: #888; font-size: 0.9rem;">Click speaker to hear</p>
+            </div>
+
+            <!-- Input with spelling assistance disabled -->
+            <input type="text" id="answer-input" placeholder="Type answer here..." 
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+            
+            <br>
+            <button id="submit-btn" class="btn" onclick="checkAnswer()">Submit Answer</button>
+            <button id="next-btn" class="btn hidden" onclick="nextQuestion()">Next ➡</button>
+
+            <div id="feedback" class="feedback-box"></div>
+        </div>
+
+        <!-- SCREEN 4: RESULTS -->
+        <div id="screen-result" class="hidden">
+            <h1>Dictation Finished! 🎉</h1>
+            <h2>You scored:</h2>
+            <div style="font-size: 4rem; color: var(--primary); font-weight: bold; margin: 20px 0;">
+                <span id="final-score">0</span> / <span id="final-total">0</span>
+            </div>
+            <p id="final-message" style="font-size: 1.2rem; margin-bottom: 30px;"></p>
+            
+            <button class="btn btn-secondary" onclick="goHome()">Play Again</button>
+        </div>
+
+    </div>
+
+    <script>
+        // --- DATA (From the uploaded image) ---
+        const data = {
+            phonics: [
+                's', 'm', 'c', 't', 'g', 'p', 'a', 'o', 'r', 'l', 'd', 'b', 'f', 'h', 'i', 'u', 
+                'v', 'w', 'y', 'z', 'j', 'n', 'k', 'e', 'll', 'ss', 'ff', 'zz'
+            ],
+            words: [
+                // Family & Friends
+                'cousin', 'elder', 'member', 'ancestor', 'hometown',
+                // Camera Words
+                'you', 'come', 'play', 'my', 'this', 'have',
+                // Phoneme Words
+                'huff', 'tell', 'well', 'jazz', 'buzz', 'will', 'miss', 'kiss', 'roll', 'buff', 
+                'doll', 'fizz', 'staff', 'skull', 'drill', 'dress', 'cliff', 'stress', 'scuff'
+            ]
+        };
+
+        // --- STATE ---
+        let selectedCategoryType = ''; // 'phonics', 'words', 'mixed'
+        let gameQueue = [];
+        let currentIndex = 0;
+        let score = 0;
+
+        // --- NAVIGATION ---
+        function goHome() {
+            // Reset logic
+            selectedCategoryType = '';
+            gameQueue = [];
+            currentIndex = 0;
+            score = 0;
+            
+            // Go to first screen
+            showScreen('screen-category');
+        }
+
+        // --- DEVICE SIZING ---
+        function setDevice(device) {
+            const wrapper = document.getElementById('game-wrapper');
+            // Reset classes
+            wrapper.classList.remove('view-mobile', 'view-tablet', 'view-computer');
+            // Add specific class
+            wrapper.classList.add(`view-${device}`);
+
+            // Update button styles
+            document.querySelectorAll('.device-btn').forEach(btn => btn.classList.remove('active'));
+            // Find the button that called this and make active (simple logic)
+            const buttons = document.querySelectorAll('.device-bar .device-btn');
+            if(device === 'mobile') buttons[1].classList.add('active');
+            if(device === 'tablet') buttons[2].classList.add('active');
+            if(device === 'computer') buttons[3].classList.add('active');
+        }
+
+        // --- FLOW CONTROL ---
+        function selectCategory(type) {
+            selectedCategoryType = type;
+            
+            // Update labels on the next screen dynamically
+            let suffix = "";
+            if(type === 'phonics') suffix = "Phonics";
+            else if(type === 'words') suffix = "Words";
+            else suffix = "Words & Phonics";
+
+            document.getElementById('lbl-type-5').innerText = suffix;
+            document.getElementById('lbl-type-10').innerText = suffix;
+            document.getElementById('lbl-type-all').innerText = suffix;
+
+            showScreen('screen-quantity');
+        }
+
+        function goBack() {
+            showScreen('screen-category');
+        }
+
+        function startGame(amount) {
+            // 1. Prepare list
+            let pool = [];
+            if (selectedCategoryType === 'phonics') pool = [...data.phonics];
+            else if (selectedCategoryType === 'words') pool = [...data.words];
+            else pool = [...data.phonics, ...data.words];
+
+            // 2. Shuffle
+            pool.sort(() => Math.random() - 0.5);
+
+            // 3. Slice
+            if (amount !== 'all') {
+                gameQueue = pool.slice(0, amount);
+            } else {
+                gameQueue = pool;
+            }
+
+            // 4. Initialize Game
+            currentIndex = 0;
+            score = 0;
+            updateProgress();
+            
+            showScreen('screen-game');
+            
+            // Wait a moment before first sound to let UI load
+            setTimeout(() => {
+                loadQuestion();
+            }, 500);
+        }
+
+        function showScreen(screenId) {
+            ['screen-category', 'screen-quantity', 'screen-game', 'screen-result'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            document.getElementById(screenId).classList.remove('hidden');
+        }
+
+        // --- GAME LOGIC ---
+        function loadQuestion() {
+            // Reset UI for new question
+            document.getElementById('answer-input').value = '';
+            document.getElementById('answer-input').disabled = false;
+            document.getElementById('answer-input').focus();
+            
+            const feedback = document.getElementById('feedback');
+            feedback.style.display = 'none';
+            feedback.className = 'feedback-box'; // remove colors
+            
+            document.getElementById('submit-btn').classList.remove('hidden');
+            document.getElementById('next-btn').classList.add('hidden');
+
+            updateProgress();
+            speakCurrentWord();
+        }
+
+        function speakCurrentWord() {
+            const word = gameQueue[currentIndex];
+            const utterance = new SpeechSynthesisUtterance(word);
+            
+            // Configuration for clarity
+            utterance.lang = 'en-GB'; // Hong Kong schools usually prefer British English
+            utterance.rate = 0.85;    // Slightly slower for children
+            
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function checkAnswer() {
+            const input = document.getElementById('answer-input');
+            const userSpelling = input.value.trim().toLowerCase();
+            const correctSpelling = gameQueue[currentIndex].toLowerCase();
+            
+            const feedback = document.getElementById('feedback');
+            const submitBtn = document.getElementById('submit-btn');
+            const nextBtn = document.getElementById('next-btn');
+
+            input.disabled = true; // Lock input
+            submitBtn.classList.add('hidden');
+            nextBtn.classList.remove('hidden');
+            
+            feedback.style.display = 'block';
+
+            if (userSpelling === correctSpelling) {
+                // Correct
+                score++;
+                feedback.innerHTML = `<strong>Yay! Correct!</strong> 🎉<br>You are doing great!`;
+                feedback.classList.add('feedback-correct');
+            } else {
+                // Incorrect - Warm correction
+                feedback.innerHTML = `<strong>Good try!</strong> But the correct spelling is: <br> 
+                                      <span style="font-size:1.5em; font-weight:bold;">${gameQueue[currentIndex]}</span> <br>
+                                      Don't worry, keep practicing! 💪`;
+                feedback.classList.add('feedback-wrong');
+            }
+            
+            nextBtn.focus();
+        }
+
+        function nextQuestion() {
+            currentIndex++;
+            if (currentIndex < gameQueue.length) {
+                loadQuestion();
+            } else {
+                endGame();
+            }
+        }
+
+        function updateProgress() {
+            document.getElementById('current-q-num').innerText = currentIndex + 1;
+            document.getElementById('total-q-num').innerText = gameQueue.length;
+        }
+
+        function endGame() {
+            showScreen('screen-result');
+            document.getElementById('final-score').innerText = score;
+            document.getElementById('final-total').innerText = gameQueue.length;
+
+            const percentage = (score / gameQueue.length) * 100;
+            const msg = document.getElementById('final-message');
+
+            if (percentage === 100) {
+                msg.innerText = "Wow! Perfect Score! You are a Dictation Master! 🏆";
+            } else if (percentage >= 80) {
+                msg.innerText = "Awesome job! You know so many words! 🌟";
+            } else if (percentage >= 50) {
+                msg.innerText = "Good effort! Keep practicing and you will get them all! 👍";
+            } else {
+                msg.innerText = "Nice try! Let's practice a bit more together. You can do it! 🌱";
+            }
+        }
+
+        // Allow pressing Enter to submit
+        document.getElementById('answer-input').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                if (!document.getElementById('submit-btn').classList.contains('hidden')) {
+                    checkAnswer();
+                } else if (!document.getElementById('next-btn').classList.contains('hidden')) {
+                    nextQuestion();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
