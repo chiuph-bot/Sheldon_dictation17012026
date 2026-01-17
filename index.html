@@ -325,11 +325,35 @@
             ]
         };
 
+        // --- PHONICS SOUND MAPPING (British English Approximations) ---
+        const phonicsMap = {
+            's': 'ssss', 'm': 'mmmm', 'c': 'kuh', 't': 'tuh', 'g': 'guh', 'p': 'puh',
+            'a': 'ah', 'o': 'oh', 'r': 'ruh', 'l': 'lll', 'd': 'duh', 'b': 'buh',
+            'f': 'fff', 'h': 'huh', 'i': 'ih', 'u': 'uh', 'v': 'vvv', 'w': 'wuh',
+            'y': 'yuh', 'z': 'zzz', 'j': 'juh', 'n': 'nnn', 'k': 'kuh', 'e': 'eh',
+            'll': 'lll', 'ss': 'ssss', 'ff': 'ffff', 'zz': 'zzz'
+        };
+
         // --- STATE ---
         let selectedCategoryType = ''; // 'phonics', 'words', 'mixed'
         let gameQueue = [];
         let currentIndex = 0;
         let score = 0;
+        
+        // --- VOICE LOADING ---
+        // Browsers load voices asynchronously, so we store them when ready
+        let availableVoices = [];
+        function loadVoices() {
+            availableVoices = window.speechSynthesis.getVoices();
+        }
+        
+        // Initial load
+        loadVoices();
+        
+        // Listener for when voices are ready (Chrome/Safari requirement)
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = loadVoices;
+        }
 
         // --- NAVIGATION ---
         function goHome() {
@@ -433,16 +457,43 @@
             document.getElementById('next-btn').classList.add('hidden');
 
             updateProgress();
-            speakCurrentWord();
+            
+            // Small delay to ensure UI updates before speaking
+            setTimeout(() => {
+                speakCurrentWord();
+            }, 300);
         }
 
         function speakCurrentWord() {
-            const word = gameQueue[currentIndex];
-            const utterance = new SpeechSynthesisUtterance(word);
+            const originalWord = gameQueue[currentIndex];
+            let textToSpeak = originalWord;
+
+            // Check if we have a special phonics pronunciation for this item
+            // We check if it's in our phonicsMap OR if it came from the phonics data list
+            if (phonicsMap[originalWord]) {
+                textToSpeak = phonicsMap[originalWord];
+            }
+
+            const utterance = new SpeechSynthesisUtterance(textToSpeak);
             
-            // Configuration for clarity
-            utterance.lang = 'en-GB'; // Hong Kong schools usually prefer British English
-            utterance.rate = 0.85;    // Slightly slower for children
+            // 1. Configuration for Language and Speed
+            utterance.lang = 'en-GB'; // British English
+            utterance.rate = 0.7;     // Slowed down for P1 students
+            
+            // 2. Attempt to select a female voice
+            // (Note: Browser voice names are specific to the OS/Browser, so we search for common keywords)
+            if (availableVoices.length > 0) {
+                const femaleVoice = availableVoices.find(voice => 
+                    // Priority: GB Female
+                    (voice.lang === 'en-GB' && (voice.name.includes('Female') || voice.name.includes('Google') || voice.name.includes('Samantha'))) ||
+                    // Fallback: Any Female
+                    voice.name.includes('Female')
+                );
+
+                if (femaleVoice) {
+                    utterance.voice = femaleVoice;
+                }
+            }
             
             window.speechSynthesis.cancel();
             window.speechSynthesis.speak(utterance);
