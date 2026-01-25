@@ -325,13 +325,46 @@
             ]
         };
 
-        // --- PHONICS SOUND MAPPING (British English Approximations) ---
+        // --- PHONICS SOUND MAPPING (Updated for Pure Sounds / BBC Style) ---
         const phonicsMap = {
-            's': 'ssss', 'm': 'mmmm', 'c': 'kuh', 't': 'tuh', 'g': 'guh', 'p': 'puh',
-            'a': 'ah', 'o': 'oh', 'r': 'ruh', 'l': 'lll', 'd': 'duh', 'b': 'buh',
-            'f': 'fff', 'h': 'huh', 'i': 'ih', 'u': 'uh', 'v': 'vvv', 'w': 'wuh',
-            'y': 'yuh', 'z': 'zzz', 'j': 'juh', 'n': 'nnn', 'k': 'kuh', 'e': 'eh',
-            'll': 'lll', 'ss': 'ssss', 'ff': 'ffff', 'zz': 'zzz'
+            // Continuous sounds (stretch them out)
+            's': 'ssss', 
+            'm': 'mmmm', 
+            'n': 'nnnn', 
+            'f': 'ffff', 
+            'l': 'llll', 
+            'r': 'rrr',   
+            'v': 'vvvv', 
+            'z': 'zzzz',
+            'ss': 'ssss', 
+            'ff': 'ffff', 
+            'll': 'llll', 
+            'zz': 'zzzz',
+
+            // Plosives (Keep short and crisp)
+            't': 'tuh', 
+            'p': 'puh', 
+            'k': 'kuh', 
+            'c': 'kuh', 
+            'ck': 'kuh',
+            'b': 'buh', 
+            'd': 'duh', 
+            'g': 'guh', 
+            'j': 'juh',
+
+            // Vowels
+            'a': 'a',     
+            'e': 'eh',    
+            'i': 'ih',    
+            'o': 'o',     
+            'u': 'uh',    
+
+            // Others
+            'h': 'huh',   
+            'w': 'wuh', 
+            'y': 'yuh', 
+            'x': 'ks', 
+            'qu': 'kwuh'
         };
 
         // --- STATE ---
@@ -341,7 +374,6 @@
         let score = 0;
         
         // --- VOICE LOADING ---
-        // Browsers load voices asynchronously, so we store them when ready
         let availableVoices = [];
         function loadVoices() {
             availableVoices = window.speechSynthesis.getVoices();
@@ -349,35 +381,26 @@
         
         // Initial load
         loadVoices();
-        
-        // Listener for when voices are ready (Chrome/Safari requirement)
         if (speechSynthesis.onvoiceschanged !== undefined) {
             speechSynthesis.onvoiceschanged = loadVoices;
         }
 
         // --- NAVIGATION ---
         function goHome() {
-            // Reset logic
             selectedCategoryType = '';
             gameQueue = [];
             currentIndex = 0;
             score = 0;
-            
-            // Go to first screen
             showScreen('screen-category');
         }
 
         // --- DEVICE SIZING ---
         function setDevice(device) {
             const wrapper = document.getElementById('game-wrapper');
-            // Reset classes
             wrapper.classList.remove('view-mobile', 'view-tablet', 'view-computer');
-            // Add specific class
             wrapper.classList.add(`view-${device}`);
 
-            // Update button styles
             document.querySelectorAll('.device-btn').forEach(btn => btn.classList.remove('active'));
-            // Find the button that called this and make active (simple logic)
             const buttons = document.querySelectorAll('.device-bar .device-btn');
             if(device === 'mobile') buttons[1].classList.add('active');
             if(device === 'tablet') buttons[2].classList.add('active');
@@ -387,8 +410,6 @@
         // --- FLOW CONTROL ---
         function selectCategory(type) {
             selectedCategoryType = type;
-            
-            // Update labels on the next screen dynamically
             let suffix = "";
             if(type === 'phonics') suffix = "Phonics";
             else if(type === 'words') suffix = "Words";
@@ -397,7 +418,6 @@
             document.getElementById('lbl-type-5').innerText = suffix;
             document.getElementById('lbl-type-10').innerText = suffix;
             document.getElementById('lbl-type-all').innerText = suffix;
-
             showScreen('screen-quantity');
         }
 
@@ -406,30 +426,24 @@
         }
 
         function startGame(amount) {
-            // 1. Prepare list
             let pool = [];
             if (selectedCategoryType === 'phonics') pool = [...data.phonics];
             else if (selectedCategoryType === 'words') pool = [...data.words];
             else pool = [...data.phonics, ...data.words];
 
-            // 2. Shuffle
             pool.sort(() => Math.random() - 0.5);
 
-            // 3. Slice
             if (amount !== 'all') {
                 gameQueue = pool.slice(0, amount);
             } else {
                 gameQueue = pool;
             }
 
-            // 4. Initialize Game
             currentIndex = 0;
             score = 0;
             updateProgress();
             
             showScreen('screen-game');
-            
-            // Wait a moment before first sound to let UI load
             setTimeout(() => {
                 loadQuestion();
             }, 500);
@@ -444,21 +458,19 @@
 
         // --- GAME LOGIC ---
         function loadQuestion() {
-            // Reset UI for new question
             document.getElementById('answer-input').value = '';
             document.getElementById('answer-input').disabled = false;
             document.getElementById('answer-input').focus();
             
             const feedback = document.getElementById('feedback');
             feedback.style.display = 'none';
-            feedback.className = 'feedback-box'; // remove colors
+            feedback.className = 'feedback-box';
             
             document.getElementById('submit-btn').classList.remove('hidden');
             document.getElementById('next-btn').classList.add('hidden');
 
             updateProgress();
             
-            // Small delay to ensure UI updates before speaking
             setTimeout(() => {
                 speakCurrentWord();
             }, 300);
@@ -468,26 +480,32 @@
             const originalWord = gameQueue[currentIndex];
             let textToSpeak = originalWord;
 
-            // Check if we have a special phonics pronunciation for this item
-            // We check if it's in our phonicsMap OR if it came from the phonics data list
             if (phonicsMap[originalWord]) {
                 textToSpeak = phonicsMap[originalWord];
             }
 
             const utterance = new SpeechSynthesisUtterance(textToSpeak);
             
-            // 1. Configuration for Language and Speed
-            utterance.lang = 'en-GB'; // British English
-            utterance.rate = 0.7;     // Slowed down for P1 students
+            // --- UPDATED VOICE SETTINGS ---
+            // 1. British English is preferred in HK schools
+            utterance.lang = 'en-GB'; 
+            // 2. VERY Slow speed (0.5) for Primary 1 students
+            utterance.rate = 0.5;     
             
-            // 2. Attempt to select a female voice
-            // (Note: Browser voice names are specific to the OS/Browser, so we search for common keywords)
+            // 3. Robust Female Voice Selection
             if (availableVoices.length > 0) {
                 const femaleVoice = availableVoices.find(voice => 
-                    // Priority: GB Female
-                    (voice.lang === 'en-GB' && (voice.name.includes('Female') || voice.name.includes('Google') || voice.name.includes('Samantha'))) ||
-                    // Fallback: Any Female
-                    voice.name.includes('Female')
+                    // Search for UK Female first
+                    (voice.lang === 'en-GB' && (
+                        voice.name.includes('Female') || 
+                        voice.name.includes('Martha') || 
+                        voice.name.includes('Susan') || 
+                        voice.name.includes('Google') // Google UK English Female
+                    )) ||
+                    // Fallback to any Female voice
+                    voice.name.includes('Female') || 
+                    voice.name.includes('Zira') || 
+                    voice.name.includes('Samantha')
                 );
 
                 if (femaleVoice) {
@@ -508,19 +526,17 @@
             const submitBtn = document.getElementById('submit-btn');
             const nextBtn = document.getElementById('next-btn');
 
-            input.disabled = true; // Lock input
+            input.disabled = true; 
             submitBtn.classList.add('hidden');
             nextBtn.classList.remove('hidden');
             
             feedback.style.display = 'block';
 
             if (userSpelling === correctSpelling) {
-                // Correct
                 score++;
                 feedback.innerHTML = `<strong>Yay! Correct!</strong> 🎉<br>You are doing great!`;
                 feedback.classList.add('feedback-correct');
             } else {
-                // Incorrect - Warm correction
                 feedback.innerHTML = `<strong>Good try!</strong> But the correct spelling is: <br> 
                                       <span style="font-size:1.5em; font-weight:bold;">${gameQueue[currentIndex]}</span> <br>
                                       Don't worry, keep practicing! 💪`;
